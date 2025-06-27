@@ -1,38 +1,62 @@
+// netlify/functions/search-flight.js
 
 const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
+    const token = 'c490a24d18eb40843f0d31a9cfa29251'; // Your Aviasales API token
+
     const { origin, destination, date, trip, returndate } = event.queryStringParameters;
-    const token = 'c490a24d18eb40843f0d31a9cfa29251';
 
     if (!origin || !destination || !date) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Missing parameters' }) };
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Missing required query parameters.' })
+        };
     }
 
     try {
-        const outboundUrl = `https://api.travelpayouts.com/aviasales/v3/prices_for_dates?origin=${origin}&destination=${destination}&departure_at=${date}&currency=usd&direct=true&limit=5`;
-        const outboundResponse = await fetch(outboundUrl, { headers: { 'X-Access-Token': token } });
-        const outboundData = await outboundResponse.json();
+        const params = new URLSearchParams({
+            origin,
+            destination,
+            departure_at: date,
+            token,
+            currency: 'usd',
+            limit: '10'
+        });
 
-        let returnData = [];
-        if (trip === 'roundtrip' && returndate) {
-            const returnUrl = `https://api.travelpayouts.com/aviasales/v3/prices_for_dates?origin=${destination}&destination=${origin}&departure_at=${returndate}&currency=usd&direct=true&limit=5`;
-            const returnResponse = await fetch(returnUrl, { headers: { 'X-Access-Token': token } });
-            const returnJson = await returnResponse.json();
-            if (returnJson.success) {
-                returnData = returnJson.data;
-            }
+        const url = `https://api.travelpayouts.com/v2/prices/latest?${params.toString()}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data || !data.data || data.data.length === 0) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ flights: [] })
+            };
         }
+
+        const outboundFlights = data.data.map(flight => ({
+            origin: flight.origin,
+            destination: flight.destination,
+            departure_at: flight.departure_at,
+            return_at: flight.return_at,
+            price: flight.price,
+            airline: flight.airline
+        }));
 
         return {
             statusCode: 200,
             body: JSON.stringify({
-                outbound: outboundData.success ? outboundData.data : [],
-                return: returnData
+                outbound: outboundFlights,
+                return: trip === 'roundtrip' ? outboundFlights : []
             })
         };
 
     } catch (error) {
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: error.message })
+        };
     }
-};
+}
