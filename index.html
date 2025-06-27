@@ -972,92 +972,72 @@
     </footer>
 
     <script>
-        // Set default dates for the booking form
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
-            const nextWeek = new Date(today);
-            nextWeek.setDate(today.getDate() + 7);
-            
-            // Format dates to YYYY-MM-DD
-            const formatDate = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
-            
-            document.getElementById('depart').value = formatDate(today);
-            document.getElementById('return').value = formatDate(nextWeek);
-            
-            // Switch locations functionality
-            document.querySelector('.switch-icon').addEventListener('click', function() {
-                const fromValue = document.getElementById('from').value;
-                const toValue = document.getElementById('to').value;
-                document.getElementById('from').value = toValue;
-                document.getElementById('to').value = fromValue;
-                
-                // Add animation effect
-                this.classList.add('animate');
-                setTimeout(() => {
-                    this.classList.remove('animate');
-                }, 500);
-            });
-            
-            // Booking type toggle
-            const bookingTypeBtns = document.querySelectorAll('.booking-type-btn');
-            bookingTypeBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    bookingTypeBtns.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                });
-            });
-            
-            // TravelPayouts API integration
-            document.getElementById('searchFlights').addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                const from = document.getElementById('from').value;
-                const to = document.getElementById('to').value;
-                const depart = document.getElementById('depart').value;
-                const returnDate = document.getElementById('return').value;
-                const travelers = document.getElementById('travelers').value;
-                
-                if (!from || !to) {
-                    alert('Please enter both departure and destination locations.');
-                    return;
-                }
-                
-                // Extract IATA codes from input (format: "City (IATA)")
-                const fromIata = from.match(/\(([A-Z]{3})\)/)[1];
-                const toIata = to.match(/\(([A-Z]{3})\)/)[1];
-                
-                // Determine cabin class
-                let cabinClass = 'economy';
-                if (travelers.includes('Premium')) cabinClass = 'premium';
-                if (travelers.includes('Business')) cabinClass = 'business';
-                if (travelers.includes('First')) cabinClass = 'first';
-                
-                // Initialize TravelPayouts widget
-                Travelpayouts.init({
-                    host: 'hydra.aviasales.ru',
-                    marker: '456072', // Replace with your actual marker
-                    target: 'flight-search-widget',
-                    locale: 'en',
-                    currency: 'USD',
-                    searchUrl: window.location.href,
-                    title: 'FLY EXPEDIA - Find Cheap Flights',
-                    payload: {
-                        iata: fromIata,
-                        destination: toIata,
-                        depart_date: depart.replace(/-/g, ''),
-                        return_date: returnDate.replace(/-/g, ''),
-                        adults: travelers.match(/\d+/)[0] || 1,
-                        cabin_class: cabinClass,
-                        with_request: true
-                    }
-                });
-            });
-        });
-    </script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Configuration
+  const config = {
+    marker: '456072',      // Your affiliate marker (e.g., '123456')
+    token: 'c490a24d18eb40843f0d31a9cfa29251',    // Your 32-character API token
+    currency: 'USD',
+    locale: 'en'
+  };
+
+  // Initialize API connection
+  function initTravelPayouts() {
+    // For widget-based features (flights/hotels)
+    Travelpayouts.init({
+      host: 'hydra.aviasales.ru',
+      marker: config.marker,
+      currency: config.currency
+    });
+
+    // For direct API calls (advanced)
+    if (config.token) {
+      fetch('https://api.travelpayouts.com/v2/prices/latest', {
+        headers: {
+          'X-Access-Token': config.token
+        }
+      })
+      .then(response => response.json())
+      .then(data => console.log('Flight data:', data))
+      .catch(error => console.error('API Error:', error));
+    }
+  }
+
+  // Search function with token authentication
+  document.getElementById('searchFlights').addEventListener('click', function(e) {
+    e.preventDefault();
+    
+    const fromIata = document.getElementById('from').value.match(/\(([A-Z]{3})\)/)[1];
+    const toIata = document.getElementById('to').value.match(/\(([A-Z]{3})\)/)[1];
+
+    // Method 1: Use their widget (no token needed)
+    Travelpayouts.init({
+      marker: config.marker,
+      target: '', // Opens in new tab
+      payload: {
+        iata: fromIata,
+        destination: toIata,
+        /* ... other params ... */
+      }
+    });
+
+    // Method 2: Direct API call (requires token)
+    if (config.token) {
+      fetch(`https://api.travelpayouts.com/v2/prices/nearest-places-matrix?currency=${config.currency}&origin=${fromIata}&destination=${toIata}`, {
+        headers: {
+          'X-Access-Token': config.token
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Real-time prices:', data);
+        // Process and display data in your UI
+      });
+    }
+  });
+
+  initTravelPayouts();
+});
+</script>
 </body>
 </html>
