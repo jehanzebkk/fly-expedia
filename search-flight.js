@@ -1,4 +1,3 @@
-
 const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
@@ -14,12 +13,20 @@ exports.handler = async function(event, context) {
             origin,
             destination,
             departure_at: date,
-            token,
             currency: 'usd',
-            limit: '10'
+            limit: '10',
+            token
         });
+
         const response = await fetch(`https://api.travelpayouts.com/v2/prices/latest?${params}`);
         const data = await response.json();
+
+        if (!data || !data.data || data.data.length === 0) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ outbound: [], return: [] })
+            };
+        }
 
         const outboundFlights = data.data.map(flight => ({
             origin: flight.origin,
@@ -27,7 +34,8 @@ exports.handler = async function(event, context) {
             departure_at: flight.departure_at,
             return_at: flight.return_at,
             price: flight.price,
-            airline: flight.airline
+            airline: flight.airline,
+            flight_number: flight.flight_number || "N/A"
         }));
 
         return {
@@ -38,6 +46,7 @@ exports.handler = async function(event, context) {
             })
         };
     } catch (error) {
+        console.error("API Fetch Error:", error);
         return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
     }
 };
