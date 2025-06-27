@@ -1,70 +1,73 @@
+// script.js - Adds IATA autocomplete to Fly Expedia using airports.json
 
-document.getElementById('trip-type').addEventListener('change', function() {
-    const returnDate = document.getElementById('return-date');
-    if (this.value === 'roundtrip') {
-        returnDate.style.display = 'block';
-        returnDate.required = true;
-    } else {
-        returnDate.style.display = 'none';
-        returnDate.required = false;
+let airports = [];
+
+// Load the airports.json data for autocomplete
+fetch('/airports.json')
+  .then(response => response.json())
+  .then(data => { airports = data; })
+  .catch(err => console.error('Error loading airports.json:', err));
+
+// Create autocomplete for origin and destination
+function setupAutocomplete(inputId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.createElement('div');
+  dropdown.classList.add('autocomplete-dropdown');
+  input.parentNode.appendChild(dropdown);
+
+  input.addEventListener('input', function() {
+    const value = this.value.toLowerCase();
+    dropdown.innerHTML = '';
+    if (!value || value.length < 2) return;
+
+    const matches = airports.filter(airport =>
+      airport.name.toLowerCase().includes(value) ||
+      airport.city.toLowerCase().includes(value) ||
+      airport.iata.toLowerCase().includes(value)
+    ).slice(0, 5);
+
+    matches.forEach(match => {
+      const item = document.createElement('div');
+      item.textContent = `${match.city} (${match.iata}) - ${match.country}`;
+      item.classList.add('autocomplete-item');
+      item.addEventListener('click', function() {
+        input.value = match.iata;
+        dropdown.innerHTML = '';
+      });
+      dropdown.appendChild(item);
+    });
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.innerHTML = '';
     }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  setupAutocomplete('origin');
+  setupAutocomplete('destination');
 });
 
-// Load IATA mapping (simple city to code mapping)
-const iataMap = {
-    'lahore': 'LHE',
-    'dubai': 'DXB',
-    'karachi': 'KHI',
-    'islamabad': 'ISB',
-    'jeddah': 'JED',
-    'doha': 'DOH'
-};
-
-document.getElementById('flight-search-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const tripType = document.getElementById('trip-type').value;
-    const originInput = document.getElementById('origin').value.trim().toLowerCase();
-    const destinationInput = document.getElementById('destination').value.trim().toLowerCase();
-    const departureDate = document.getElementById('departure-date').value;
-    const returnDate = document.getElementById('return-date').value;
-
-    const origin = iataMap[originInput] || originInput.toUpperCase();
-    const destination = iataMap[destinationInput] || destinationInput.toUpperCase();
-
-    document.getElementById('results').innerHTML = 'Loading...';
-
-    let url = `/.netlify/functions/search-flight?origin=${origin}&destination=${destination}&date=${departureDate}&trip=${tripType}`;
-    if (tripType === 'roundtrip') {
-        url += `&returndate=${returnDate}`;
-    }
-
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.error) {
-            document.getElementById('results').innerHTML = 'Error: ' + data.error;
-        } else {
-            let html = '<h3>Available Flights:</h3>';
-            if (data.outbound && data.outbound.length > 0) {
-                html += '<h4>Outbound Flights:</h4><ul>';
-                data.outbound.forEach(flight => {
-                    const link = `https://www.aviasales.com/search/${origin}${departureDate.replace(/-/g,'').slice(4,8)}${destination}1?marker=456072`;
-                    html += `<li>${flight.origin} ➔ ${flight.destination} | ${flight.departure_at} | Price: $${flight.price} <a href="${link}" target="_blank">Book Now</a></li>`;
-                });
-                html += '</ul>';
-            }
-            if (tripType === 'roundtrip' && data.return && data.return.length > 0) {
-                html += '<h4>Return Flights:</h4><ul>';
-                data.return.forEach(flight => {
-                    const link = `https://www.aviasales.com/search/${destination}${returnDate.replace(/-/g,'').slice(4,8)}${origin}1?marker=456072`;
-                    html += `<li>${flight.origin} ➔ ${flight.destination} | ${flight.departure_at} | Price: $${flight.price} <a href="${link}" target="_blank">Book Now</a></li>`;
-                });
-                html += '</ul>';
-            }
-            document.getElementById('results').innerHTML = html;
-        }
-    } catch (error) {
-        document.getElementById('results').innerHTML = 'Error fetching flights.';
-    }
-});
+// Style for the dropdown
+const style = document.createElement('style');
+style.innerHTML = `
+.autocomplete-dropdown {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 1000;
+  max-height: 150px;
+  overflow-y: auto;
+  width: calc(100% - 22px);
+}
+.autocomplete-item {
+  padding: 8px;
+  cursor: pointer;
+}
+.autocomplete-item:hover {
+  background: #f0f0f0;
+}
+`;
+document.head.appendChild(style);
