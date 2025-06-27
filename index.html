@@ -1084,25 +1084,29 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #ffffff;
     border: 1px solid #ccc;
     z-index: 9999;
-    max-height: 200px;
+    max-height: 180px;
     overflow-y: auto;
-    width: 100%;
-    border-radius: 4px;
+    width: 100%; /* take full input width precisely */
+    box-sizing: border-box; /* ensures padding and border are included in width */
+    border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-top: 2px; /* slight gap for clean separation */
+    font-family: inherit;
 }
 
 .autocomplete-item {
     padding: 10px;
     cursor: pointer;
     font-size: 14px;
-    color: #333; /* Ensure dark text */
+    color: #333; /* readable text */
     background: #ffffff;
 }
 
 .autocomplete-item:hover {
-    background: #0066cc;
-    color: #ffffff; /* White text only on hover */
+    background: #0066cc; /* Fly Expedia blue */
+    color: #ffffff; /* white text on hover */
 }
+</style>
 </style>
 
 </body>
